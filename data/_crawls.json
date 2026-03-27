@@ -1,0 +1,12 @@
+{
+  "commerce-cloud": {
+    "name": "commerce-cloud",
+    "startUrl": "https://help.salesforce.com/s/articleView?id=commerce.comm_intro.htm&type=5",
+    "depth": 3,
+    "scope": true,
+    "area": "commerce",
+    "createdAt": "2026-03-26",
+    "lastCrawledAt": "2026-03-26",
+    "articleCount": 385
+  }
+}
