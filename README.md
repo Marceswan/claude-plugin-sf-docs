@@ -8,6 +8,7 @@ Ingest Salesforce documentation locally, search it semantically, and generate do
 - [Prerequisites](#prerequisites)
 - [Installation](#installation)
 - [Getting Started](#getting-started)
+- [Slash Command](#slash-command)
 - [Commands Reference](#commands-reference)
 - [Auto-Injection Hook](#auto-injection-hook)
 - [Generating SME Skills and Agents](#generating-sme-skills-and-agents)
@@ -57,11 +58,8 @@ node "$(find ~/.claude/plugins/cache -path '*/sf-docs/dist/cli.js' 2>/dev/null |
 
 Pick a Salesforce documentation area and crawl it. The `--depth` flag controls how many levels of linked articles to follow. The `--name` flag registers the crawl for future updates.
 
-```bash
-# Example: Crawl Commerce Cloud docs (depth 3 = ~400 articles, takes 15-20 min)
-node "$PLUGIN_ROOT/dist/cli.js" crawl \
-  "https://help.salesforce.com/s/articleView?id=commerce.comm_intro.htm&type=5" \
-  --depth 3 --name commerce-cloud
+```
+/sf-docs crawl "https://help.salesforce.com/s/articleView?id=commerce.comm_intro.htm&type=5" --depth 3 --name commerce-cloud
 ```
 
 **Choosing depth:**
@@ -74,55 +72,65 @@ node "$PLUGIN_ROOT/dist/cli.js" crawl \
 
 **Other doc areas you might want to crawl:**
 
-```bash
-# Apex development
-node "$PLUGIN_ROOT/dist/cli.js" crawl \
-  "https://help.salesforce.com/s/articleView?id=sf.apex_dev_guide.htm&type=5" \
-  --depth 2 --name apex-dev
-
-# Flow Builder
-node "$PLUGIN_ROOT/dist/cli.js" crawl \
-  "https://help.salesforce.com/s/articleView?id=sf.flow.htm&type=5" \
-  --depth 2 --name flow-builder
-
-# Lightning Web Components
-node "$PLUGIN_ROOT/dist/cli.js" crawl \
-  "https://help.salesforce.com/s/articleView?id=sf.lwc_get_started.htm&type=5" \
-  --depth 2 --name lwc
+```
+/sf-docs crawl "https://help.salesforce.com/s/articleView?id=sf.apex_dev_guide.htm&type=5" --depth 2 --name apex-dev
+/sf-docs crawl "https://help.salesforce.com/s/articleView?id=sf.flow.htm&type=5" --depth 2 --name flow-builder
+/sf-docs crawl "https://help.salesforce.com/s/articleView?id=sf.lwc_get_started.htm&type=5" --depth 2 --name lwc
 ```
 
 ### Step 2: Search Your Docs
 
-Once crawled, you can search across all ingested documentation:
+Once crawled, search across all ingested documentation:
 
-```bash
-node "$PLUGIN_ROOT/dist/cli.js" search "buyer group entitlement policies"
+```
+/sf-docs search "buyer group entitlement policies"
 ```
 
-This returns the top 5 results with relevance scores, text snippets, source URLs, and local file paths.
+Returns the top 5 results with relevance scores, text snippets, source URLs, and local file paths.
 
 ### Step 3: Generate an SME (Optional)
 
 Turn your crawled docs into a specialized Claude Code skill or agent:
 
-```bash
-# Generate a skill (for inline Q&A in your session)
-node "$PLUGIN_ROOT/dist/cli.js" generate skill commerce-cloud
-
-# Generate an agent (for autonomous research tasks)
-node "$PLUGIN_ROOT/dist/cli.js" generate agent commerce-cloud
+```
+/sf-docs generate skill commerce-cloud
+/sf-docs generate agent commerce-cloud
 ```
 
 The generated skill includes a topic tree and key concept definitions extracted from the crawled articles, giving Claude immediate domain fluency without needing to search for basics.
 
+## Slash Command
+
+The plugin registers `/sf-docs` as a slash command. All CLI commands are available through it — just type `/sf-docs` followed by the command and arguments:
+
+```
+/sf-docs search "checkout configuration"
+/sf-docs crawl <url> --depth 2 --name my-docs
+/sf-docs generate skill commerce-cloud
+/sf-docs generate agent commerce-cloud
+/sf-docs update --all
+/sf-docs crawls
+/sf-docs status
+/sf-docs list commerce
+```
+
+Run `/sf-docs` with no arguments to see all available commands.
+
+All examples in this README use the `/sf-docs` slash command format. If you need to run the CLI directly outside of Claude Code (e.g., in a shell script), use the full path:
+
+```bash
+PLUGIN_ROOT=$(dirname "$(find ~/.claude/plugins/cache -path '*/sf-docs/dist/cli.js' 2>/dev/null | head -1)")
+node "$PLUGIN_ROOT" search "your query"
+```
+
 ## Commands Reference
 
-All commands are run via the sf-docs CLI. Replace `$PLUGIN_ROOT` with your plugin installation path (the hook provides this automatically during sessions).
+All commands are available via the `/sf-docs` slash command in Claude Code.
 
 ### search
 
-```bash
-node "$PLUGIN_ROOT/dist/cli.js" search "your query here"
+```
+/sf-docs search "your query here"
 ```
 
 Semantic search across all ingested docs. Returns top 5 results with relevance scores, snippets (max 500 chars), URLs, and file paths. Use the Read tool on the file path for full article content.
@@ -132,8 +140,8 @@ Semantic search across all ingested docs. Returns top 5 results with relevance s
 
 ### fetch
 
-```bash
-node "$PLUGIN_ROOT/dist/cli.js" fetch "https://help.salesforce.com/s/articleView?id=<id>&type=5"
+```
+/sf-docs fetch "https://help.salesforce.com/s/articleView?id=<id>&type=5"
 ```
 
 Fetch and ingest a single Salesforce Help page. The page is rendered via headless browser (required because SF docs are JS-rendered), converted to markdown, and indexed for search.
@@ -143,8 +151,8 @@ Fetch and ingest a single Salesforce Help page. The page is rendered via headles
 
 ### crawl
 
-```bash
-node "$PLUGIN_ROOT/dist/cli.js" crawl <url> [options]
+```
+/sf-docs crawl <url> [options]
 ```
 
 Crawl a documentation tree starting from the given URL. Follows article links up to the specified depth.
@@ -157,27 +165,27 @@ Crawl a documentation tree starting from the given URL. Follows article links up
 
 ### update
 
-```bash
-node "$PLUGIN_ROOT/dist/cli.js" update <crawl-name>    # Re-crawl one
-node "$PLUGIN_ROOT/dist/cli.js" update --all           # Re-crawl all registered
-node "$PLUGIN_ROOT/dist/cli.js" update <name> --force  # Force re-fetch all pages
+```
+/sf-docs update <crawl-name>          # Re-crawl one
+/sf-docs update --all                 # Re-crawl all registered
+/sf-docs update <name> --force        # Force re-fetch all pages
 ```
 
 Re-crawl a registered crawl using its stored settings (URL, depth, scope). Articles fetched within the last 30 days are skipped unless `--force` is used.
 
 ### crawls
 
-```bash
-node "$PLUGIN_ROOT/dist/cli.js" crawls
+```
+/sf-docs crawls
 ```
 
 List all registered crawls with their settings: name, area, depth, article count, last crawled date, and start URL.
 
 ### generate
 
-```bash
-node "$PLUGIN_ROOT/dist/cli.js" generate skill <crawl-name>  # SKILL.md for inline Q&A
-node "$PLUGIN_ROOT/dist/cli.js" generate agent <crawl-name>  # Agent definition for research
+```
+/sf-docs generate skill <crawl-name>  # SKILL.md for inline Q&A
+/sf-docs generate agent <crawl-name>  # Agent definition for research
 ```
 
 Generate a domain-specific SME skill or agent from crawled documentation.
@@ -191,32 +199,32 @@ Generate a domain-specific SME skill or agent from crawled documentation.
 
 ### list
 
-```bash
-node "$PLUGIN_ROOT/dist/cli.js" list [area]
+```
+/sf-docs list [area]
 ```
 
 List all ingested documents, optionally filtered by area (e.g., `commerce`, `sf`, `apex`).
 
 ### status
 
-```bash
-node "$PLUGIN_ROOT/dist/cli.js" status
+```
+/sf-docs status
 ```
 
 Show index and store statistics: total documents, areas, and indexed chunks.
 
 ### remove
 
-```bash
-node "$PLUGIN_ROOT/dist/cli.js" remove <article-id>
+```
+/sf-docs remove <article-id>
 ```
 
 Remove a specific article from the store and vector index.
 
 ### rebuild-index
 
-```bash
-node "$PLUGIN_ROOT/dist/cli.js" rebuild-index
+```
+/sf-docs rebuild-index
 ```
 
 Rebuild the entire vector index from all stored markdown files. Use if the index becomes corrupted or after manual edits to stored articles.
@@ -273,25 +281,18 @@ This gives the generated skill/agent immediate domain fluency — it knows what 
 
 Salesforce releases three major updates per year (Spring, Summer, Winter). Use the update command to keep your docs current:
 
-```bash
-# See what crawls you have registered
-node "$PLUGIN_ROOT/dist/cli.js" crawls
-
-# Update a specific crawl
-node "$PLUGIN_ROOT/dist/cli.js" update commerce-cloud
-
-# Update everything
-node "$PLUGIN_ROOT/dist/cli.js" update --all
-
-# Force re-fetch all pages (ignores 30-day freshness check)
-node "$PLUGIN_ROOT/dist/cli.js" update --all --force
+```
+/sf-docs crawls                          # See what crawls you have registered
+/sf-docs update commerce-cloud           # Update a specific crawl
+/sf-docs update --all                    # Update everything
+/sf-docs update --all --force            # Force re-fetch all pages
 ```
 
 After updating, regenerate your SME skills and agents to pick up new content:
 
-```bash
-node "$PLUGIN_ROOT/dist/cli.js" generate skill commerce-cloud
-node "$PLUGIN_ROOT/dist/cli.js" generate agent commerce-cloud
+```
+/sf-docs generate skill commerce-cloud
+/sf-docs generate agent commerce-cloud
 ```
 
 ## Plugin Structure
@@ -299,6 +300,7 @@ node "$PLUGIN_ROOT/dist/cli.js" generate agent commerce-cloud
 ```
 claude-plugin-sf-docs/
 ├── .claude-plugin/plugin.json   # Plugin metadata
+├── commands/sf-docs.md          # /sf-docs slash command definition
 ├── skills/sf-docs/SKILL.md      # Base skill (search/crawl instructions)
 ├── hooks/
 │   ├── hooks.json               # Hook configuration
@@ -347,8 +349,8 @@ Crawling uses a headless browser with a 1.5-second delay between pages to avoid 
 
 By default, pages fetched within the last 30 days are skipped. Use `--force` to re-fetch everything:
 
-```bash
-node "$PLUGIN_ROOT/dist/cli.js" update commerce-cloud --force
+```
+/sf-docs update commerce-cloud --force
 ```
 
 ### Hook isn't firing
@@ -359,8 +361,8 @@ The hook only triggers on Salesforce-related files and commands. It detects `.cl
 
 Rebuild it from the stored markdown files:
 
-```bash
-node "$PLUGIN_ROOT/dist/cli.js" rebuild-index
+```
+/sf-docs rebuild-index
 ```
 
 ## Technical Details
