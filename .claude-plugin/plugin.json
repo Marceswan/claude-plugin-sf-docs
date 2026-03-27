@@ -1,0 +1,9 @@
+{
+  "name": "sf-docs",
+  "description": "Salesforce documentation ingestion, semantic search, and SME agent generation",
+  "version": "1.0.0",
+  "author": { "name": "Marc Swan" },
+  "repository": "https://github.com/Marceswan/claude-plugin-sf-docs",
+  "license": "MIT",
+  "keywords": ["salesforce", "documentation", "search", "sme", "commerce-cloud"]
+}
