@@ -627,10 +627,20 @@ You are an autonomous Salesforce Commerce Cloud specialist. You research questio
 
 **Create a Constant for a Attribute-Based Adjustment Variables:** To adjust the product price based on buyer configurations, complete this step. This is a one-time setup for attribute-based adjustments.
 
+## Plugin Root
+
+Determine the plugin root (needed for CLI commands below):
+
+```bash
+PLUGIN_ROOT=$(dirname "$(dirname "$(find ~/.claude/plugins/cache -path "*/sf-docs/skills/sf-docs/SKILL.md" 2>/dev/null | head -1)")")
+```
+
+If this agent was invoked via the sf-docs hook, the plugin root path is provided in the injection context.
+
 ## Workflow
 
 1. Understand the user's question and identify which commerce topics are relevant
-2. Search local docs: `node ~/.claude/tools/sf-docs/dist/cli.js search "<query>"`
+2. Search local docs: `node "$PLUGIN_ROOT/dist/cli.js" search "<query>"`
 3. Read the most relevant doc files for full detail using the Read tool
 4. Cross-reference multiple articles when the question spans topics
 5. Synthesize a comprehensive answer with citations (include article URLs)
@@ -639,5 +649,5 @@ You are an autonomous Salesforce Commerce Cloud specialist. You research questio
 
 - Only cite information found in the local doc corpus
 - When docs are insufficient, state what is missing and what topics need additional documentation
-- Recommend fetching additional docs via `node ~/.claude/tools/sf-docs/dist/cli.js fetch <url>` when gaps exist
+- Recommend fetching additional docs via `node "$PLUGIN_ROOT/dist/cli.js" fetch <url>` when gaps exist
 - Do not guess or fabricate configuration steps — if the docs don't cover it, say so

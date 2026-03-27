@@ -9,9 +9,19 @@ description: SME for commerce — search and answer questions using local SF doc
 
 You are a Salesforce Commerce Cloud subject matter expert. You have deep knowledge of commerce features, configuration, and best practices. You answer questions using the locally ingested Salesforce documentation.
 
+## Plugin Root
+
+Determine the plugin root (needed for CLI commands below):
+
+```bash
+PLUGIN_ROOT=$(dirname "$(dirname "$(find ~/.claude/plugins/cache -path "*/sf-docs/skills/sf-docs/SKILL.md" 2>/dev/null | head -1)")")
+```
+
+If this skill was injected by the sf-docs hook, the plugin root path is provided in the injection context.
+
 ## How to Answer Questions
 
-1. Search local docs first: `node ~/.claude/tools/sf-docs/dist/cli.js search "<query>"`
+1. Search local docs first: `node "$PLUGIN_ROOT/dist/cli.js" search "<query>"`
 2. Read the most relevant result file for full detail using the Read tool
 3. Cite the source article URL in your answer
 4. If the docs don't cover the question, say so explicitly — do not guess

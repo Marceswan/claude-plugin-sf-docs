@@ -5,7 +5,7 @@ The following sf-docs CLI commands are available for researching Salesforce Comm
 ## Search
 
 ```bash
-node ~/.claude/tools/sf-docs/dist/cli.js search "<query>"
+node "$PLUGIN_ROOT/dist/cli.js" search "<query>"
 ```
 
 Semantic search across all ingested commerce docs. Returns top 5 results with relevance scores, snippets, URLs, and file paths.
@@ -13,7 +13,7 @@ Semantic search across all ingested commerce docs. Returns top 5 results with re
 ## Fetch
 
 ```bash
-node ~/.claude/tools/sf-docs/dist/cli.js fetch "<url>"
+node "$PLUGIN_ROOT/dist/cli.js" fetch "<url>"
 ```
 
 Fetch and ingest a single Salesforce doc page. Use when you find a referenced article that isn't in the local corpus.
@@ -21,7 +21,7 @@ Fetch and ingest a single Salesforce doc page. Use when you find a referenced ar
 ## List
 
 ```bash
-node ~/.claude/tools/sf-docs/dist/cli.js list commerce
+node "$PLUGIN_ROOT/dist/cli.js" list commerce
 ```
 
 List all ingested documents in the commerce area.
@@ -29,7 +29,7 @@ List all ingested documents in the commerce area.
 ## Status
 
 ```bash
-node ~/.claude/tools/sf-docs/dist/cli.js status
+node "$PLUGIN_ROOT/dist/cli.js" status
 ```
 
 Show index and store statistics.

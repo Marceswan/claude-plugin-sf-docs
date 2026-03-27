@@ -48,9 +48,19 @@ description: SME for ${entry.area} — search and answer questions using local S
 
 You are a Salesforce ${displayName} subject matter expert. You have deep knowledge of ${entry.area} features, configuration, and best practices. You answer questions using the locally ingested Salesforce documentation.
 
+## Plugin Root
+
+Determine the plugin root (needed for CLI commands below):
+
+\`\`\`bash
+PLUGIN_ROOT=$(dirname "$(dirname "$(find ~/.claude/plugins/cache -path "*/sf-docs/skills/sf-docs/SKILL.md" 2>/dev/null | head -1)")")
+\`\`\`
+
+If this skill was injected by the sf-docs hook, the plugin root path is provided in the injection context.
+
 ## How to Answer Questions
 
-1. Search local docs first: \`node ~/.claude/tools/sf-docs/dist/cli.js search "<query>"\`
+1. Search local docs first: \`node "$PLUGIN_ROOT/dist/cli.js" search "<query>"\`
 2. Read the most relevant result file for full detail using the Read tool
 3. Cite the source article URL in your answer
 4. If the docs don't cover the question, say so explicitly — do not guess
@@ -85,10 +95,20 @@ You are an autonomous Salesforce ${displayName} specialist. You research questio
 
 ${summary}
 
+## Plugin Root
+
+Determine the plugin root (needed for CLI commands below):
+
+\`\`\`bash
+PLUGIN_ROOT=$(dirname "$(dirname "$(find ~/.claude/plugins/cache -path "*/sf-docs/skills/sf-docs/SKILL.md" 2>/dev/null | head -1)")")
+\`\`\`
+
+If this agent was invoked via the sf-docs hook, the plugin root path is provided in the injection context.
+
 ## Workflow
 
 1. Understand the user's question and identify which ${entry.area} topics are relevant
-2. Search local docs: \`node ~/.claude/tools/sf-docs/dist/cli.js search "<query>"\`
+2. Search local docs: \`node "$PLUGIN_ROOT/dist/cli.js" search "<query>"\`
 3. Read the most relevant doc files for full detail using the Read tool
 4. Cross-reference multiple articles when the question spans topics
 5. Synthesize a comprehensive answer with citations (include article URLs)
@@ -97,7 +117,7 @@ ${summary}
 
 - Only cite information found in the local doc corpus
 - When docs are insufficient, state what is missing and what topics need additional documentation
-- Recommend fetching additional docs via \`node ~/.claude/tools/sf-docs/dist/cli.js fetch <url>\` when gaps exist
+- Recommend fetching additional docs via \`node "$PLUGIN_ROOT/dist/cli.js" fetch <url>\` when gaps exist
 - Do not guess or fabricate configuration steps — if the docs don't cover it, say so
 `;
 
@@ -108,7 +128,7 @@ The following sf-docs CLI commands are available for researching Salesforce ${di
 ## Search
 
 \`\`\`bash
-node ~/.claude/tools/sf-docs/dist/cli.js search "<query>"
+node "$PLUGIN_ROOT/dist/cli.js" search "<query>"
 \`\`\`
 
 Semantic search across all ingested ${entry.area} docs. Returns top 5 results with relevance scores, snippets, URLs, and file paths.
@@ -116,7 +136,7 @@ Semantic search across all ingested ${entry.area} docs. Returns top 5 results wi
 ## Fetch
 
 \`\`\`bash
-node ~/.claude/tools/sf-docs/dist/cli.js fetch "<url>"
+node "$PLUGIN_ROOT/dist/cli.js" fetch "<url>"
 \`\`\`
 
 Fetch and ingest a single Salesforce doc page. Use when you find a referenced article that isn't in the local corpus.
@@ -124,7 +144,7 @@ Fetch and ingest a single Salesforce doc page. Use when you find a referenced ar
 ## List
 
 \`\`\`bash
-node ~/.claude/tools/sf-docs/dist/cli.js list ${entry.area}
+node "$PLUGIN_ROOT/dist/cli.js" list ${entry.area}
 \`\`\`
 
 List all ingested documents in the ${entry.area} area.
@@ -132,7 +152,7 @@ List all ingested documents in the ${entry.area} area.
 ## Status
 
 \`\`\`bash
-node ~/.claude/tools/sf-docs/dist/cli.js status
+node "$PLUGIN_ROOT/dist/cli.js" status
 \`\`\`
 
 Show index and store statistics.

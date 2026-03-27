@@ -64,7 +64,7 @@ describe('Generator', () => {
     expect(content).toContain('name: sf-test-area');
     expect(content).toContain('## Identity');
     expect(content).toContain('## How to Answer Questions');
-    expect(content).toContain('sf-docs/dist/cli.js search');
+    expect(content).toContain('$PLUGIN_ROOT/dist/cli.js" search');
     expect(content).toContain('## Reference Summary');
     expect(content).toContain('Key Feature');
   });
