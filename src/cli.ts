@@ -1,6 +1,9 @@
 #!/usr/bin/env node
 // src/cli.ts
 import { Command } from 'commander';
+import { execFile } from 'child_process';
+import { resolve, dirname } from 'path';
+import { fileURLToPath } from 'url';
 import { Fetcher } from './fetcher.js';
 import { Parser } from './parser.js';
 import { Store } from './store.js';
@@ -9,6 +12,62 @@ import { Crawler } from './crawler.js';
 import { Registry } from './registry.js';
 import { PATHS } from './config.js';
 import { Generator } from './generator.js';
+import { Packer } from './packer.js';
+
+const __cliDirname = dirname(fileURLToPath(import.meta.url));
+
+interface ImproveResult {
+  iterations: number;
+  initialPassRate: number;
+  finalPassRate: number;
+  finalResult: {
+    totalInputs: number;
+    failureCounts: Record<string, number>;
+  };
+  skillContent: string;
+}
+
+function runImproveSubprocess(
+  skillPath: string,
+  opts: { maxIterations: number; verbose: boolean },
+): Promise<ImproveResult> {
+  return new Promise((resolveP, reject) => {
+    const improveCli = resolve(__cliDirname, '..', 'evals', 'quality', 'improve-cli.ts');
+    const tsxBin = resolve(__cliDirname, '..', 'node_modules', '.bin', 'tsx');
+
+    const args = [
+      improveCli,
+      '--skill', skillPath,
+      '--max-iterations', String(opts.maxIterations),
+    ];
+    if (opts.verbose) args.push('--verbose');
+
+    const child = execFile(tsxBin, args, {
+      env: { ...process.env },
+      maxBuffer: 10 * 1024 * 1024,
+    }, (err, stdout, stderr) => {
+      if (stderr && opts.verbose) {
+        // stderr has verbose progress output -- show it
+        process.stderr.write(stderr);
+      }
+      if (err) {
+        reject(new Error(`Improve subprocess failed: ${err.message}\n${stderr}`));
+        return;
+      }
+      try {
+        const result = JSON.parse(stdout) as ImproveResult;
+        resolveP(result);
+      } catch {
+        reject(new Error(`Failed to parse improve result: ${stdout.slice(0, 200)}`));
+      }
+    });
+
+    // Stream stderr in real-time if verbose
+    if (opts.verbose && child.stderr) {
+      child.stderr.pipe(process.stderr);
+    }
+  });
+}
 
 const program = new Command();
 
@@ -216,10 +275,21 @@ program
 
 program
   .command('update [crawl-name]')
-  .description('Re-crawl a registered crawl using its stored settings')
+  .description('Re-crawl, regenerate skill, and run eval-improve loop')
   .option('--all', 'Re-crawl all registered crawls')
   .option('--force', 'Re-fetch even if pages are fresh')
-  .action(async (crawlName: string | undefined, opts: { all?: boolean; force?: boolean }) => {
+  .option('--skip-crawl', 'Skip re-crawl, just regenerate and eval')
+  .option('--skip-eval', 'Skip eval loop, just crawl and regenerate')
+  .option('--max-iterations <number>', 'Max eval improvement iterations', '5')
+  .option('-v, --verbose', 'Show detailed eval output')
+  .action(async (crawlName: string | undefined, opts: {
+    all?: boolean;
+    force?: boolean;
+    skipCrawl?: boolean;
+    skipEval?: boolean;
+    maxIterations: string;
+    verbose?: boolean;
+  }) => {
     const registry = new Registry(PATHS.crawls);
 
     if (!crawlName && !opts.all) {
@@ -245,16 +315,74 @@ program
     }
 
     for (const entry of entries) {
-      console.log(`\nUpdating: ${entry.name} (${entry.startUrl}, depth: ${entry.depth})`);
-      const crawler = new Crawler();
-      const result = await crawler.crawl(entry.startUrl, {
-        depth: entry.depth,
-        noScope: !entry.scope,
-        force: opts.force || false,
-      });
-      const today = new Date().toISOString().split('T')[0];
-      registry.update(entry.name, { lastCrawledAt: today, articleCount: result.articleCount });
-      console.log(`Done. Fetched: ${result.fetched}, Skipped: ${result.skipped}, Total articles: ${result.articleCount}`);
+      // ── Phase 1: Re-crawl ──────────────────────────────────────
+      if (!opts.skipCrawl) {
+        console.log(`\n[1/3] Crawling: ${entry.name} (${entry.startUrl}, depth: ${entry.depth})`);
+        const crawler = new Crawler();
+        const result = await crawler.crawl(entry.startUrl, {
+          depth: entry.depth,
+          noScope: !entry.scope,
+          force: opts.force || false,
+        });
+        const today = new Date().toISOString().split('T')[0];
+        registry.update(entry.name, { lastCrawledAt: today, articleCount: result.articleCount });
+        console.log(`  Fetched: ${result.fetched}, Skipped: ${result.skipped}, Total: ${result.articleCount}`);
+      } else {
+        console.log(`\n[1/3] Crawl: skipped (--skip-crawl)`);
+      }
+
+      // ── Phase 2: Regenerate skill ─────────────────────────────
+      console.log(`[2/3] Regenerating skill: ${entry.name}`);
+      const store = new Store(PATHS.docs);
+      const generator = new Generator(registry, store, PATHS.generated);
+      const skillPath = generator.generateSkill(entry.name);
+      console.log(`  Skill written: ${skillPath}`);
+
+      // ── Phase 3: Eval + improve ───────────────────────────────
+      if (!opts.skipEval) {
+        if (!process.env.ANTHROPIC_API_KEY) {
+          console.log('[3/3] Eval: skipped (ANTHROPIC_API_KEY not set)');
+          console.log('\nSkill generated but not eval-hardened. Set ANTHROPIC_API_KEY to enable.');
+        } else {
+          console.log(`[3/3] Running eval-improve loop (max ${opts.maxIterations} iterations)...`);
+          try {
+            const result = await runImproveSubprocess(skillPath, {
+              maxIterations: parseInt(opts.maxIterations, 10),
+              verbose: opts.verbose || false,
+            });
+
+            console.log(`\n${'='.repeat(60)}`);
+            console.log('UPDATE COMPLETE');
+            console.log('='.repeat(60));
+            console.log(`  Skill: ${entry.name}`);
+            console.log(`  Initial pass rate: ${(result.initialPassRate * 100).toFixed(1)}%`);
+            console.log(`  Final pass rate:   ${(result.finalPassRate * 100).toFixed(1)}%`);
+            console.log(`  Iterations:        ${result.iterations}`);
+
+            if (Object.keys(result.finalResult.failureCounts).length > 0) {
+              console.log('  Remaining failures:');
+              for (const [name, count] of Object.entries(result.finalResult.failureCounts)) {
+                console.log(`    ${name}: ${count}/${result.finalResult.totalInputs}`);
+              }
+            }
+
+            // Output the final skill content
+            console.log(`\n${'─'.repeat(60)}`);
+            console.log('FINAL SKILL OUTPUT');
+            console.log('─'.repeat(60));
+            console.log(result.skillContent);
+          } catch (err) {
+            console.error(`Eval error: ${(err as Error).message}`);
+            console.log('Skill was generated but eval loop failed. The un-hardened skill is at:');
+            console.log(`  ${skillPath}`);
+          }
+        }
+      } else {
+        console.log('[3/3] Eval: skipped (--skip-eval)');
+      }
+
+      // Always show the skill path
+      console.log(`\nSkill file: ${skillPath}`);
     }
   });
 
@@ -297,6 +425,34 @@ generate
     } catch (err) {
       console.error((err as Error).message);
       console.log('Run `sf-docs crawls` to see available crawls.');
+    }
+  });
+
+program
+  .command('pack')
+  .description('Bundle crawled data into a distributable archive')
+  .option('-o, --output <path>', 'Output file path (default: sf-docs-data.tar.gz)')
+  .action((opts: { output?: string }) => {
+    const packer = new Packer();
+    try {
+      const result = packer.pack(opts.output);
+      console.log(`Packed: ${result}`);
+    } catch (err) {
+      console.error((err as Error).message);
+    }
+  });
+
+program
+  .command('unpack <archive>')
+  .description('Extract a data archive (search works without Playwright)')
+  .action((archive: string) => {
+    const packer = new Packer();
+    try {
+      const result = packer.unpack(archive);
+      console.log(`Unpacked: ${result.docs} documents`);
+      console.log(`Index: ${result.hasIndex ? 'ready' : 'not found (run rebuild-index)'}`);
+    } catch (err) {
+      console.error((err as Error).message);
     }
   });
 

@@ -5,6 +5,7 @@
 
 import { readFileSync } from 'fs';
 import { runAllAssertions } from './assertions.js';
+import { callAnthropic } from './anthropic.js';
 
 interface TestInput {
   id: string;
@@ -28,44 +29,6 @@ export interface HarnessResult {
   passRate: number;
   failureCounts: Record<string, number>;
   results: AssertionResult[];
-}
-
-async function callAnthropic(
-  systemPrompt: string,
-  userMessage: string,
-): Promise<string> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    throw new Error(
-      'ANTHROPIC_API_KEY environment variable is required. Set it before running evals.',
-    );
-  }
-
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-    },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 2048,
-      system: systemPrompt,
-      messages: [{ role: 'user', content: userMessage }],
-    }),
-  });
-
-  if (!response.ok) {
-    const body = await response.text();
-    throw new Error(`Anthropic API error ${response.status}: ${body}`);
-  }
-
-  const data = (await response.json()) as {
-    content: Array<{ type: string; text?: string }>;
-  };
-  const textBlock = data.content.find((b) => b.type === 'text');
-  return textBlock?.text ?? '';
 }
 
 function buildSystemPrompt(skillContent: string): string {
