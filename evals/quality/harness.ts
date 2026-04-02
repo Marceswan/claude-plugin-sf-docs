@@ -1,16 +1,23 @@
 /**
- * Test harness that invokes a generated skill against test inputs
- * using the Anthropic API, then runs binary assertions on each output.
+ * Output-level eval harness. Runs binary assertions against pre-generated
+ * answers. Designed to be driven by Claude Code -- Claude Code generates
+ * the answers (it IS the LLM), then feeds them here for deterministic checks.
+ *
+ * No external API calls. No ANTHROPIC_API_KEY required.
  */
 
 import { readFileSync } from 'fs';
 import { runAllAssertions } from './assertions.js';
-import { callAnthropic } from './anthropic.js';
 
-interface TestInput {
+export interface TestInput {
   id: string;
   category: string;
   question: string;
+}
+
+export interface EvalEntry {
+  input: TestInput;
+  output: string;
 }
 
 interface AssertionResult {
@@ -31,83 +38,46 @@ export interface HarnessResult {
   results: AssertionResult[];
 }
 
-function buildSystemPrompt(skillContent: string): string {
-  return `${skillContent}
-
-## Important Context for This Session
-
-The local docs search CLI (\`node "$PLUGIN_ROOT/dist/cli.js" search\`) is NOT available in this context. You cannot run shell commands or use the Read tool.
-
-Instead, answer questions using:
-1. The Topic Tree provided in the Reference Summary above -- cite specific article titles from it
-2. Your knowledge of Salesforce Commerce features and configuration
-
-You MUST cite specific article titles from the Topic Tree when they are relevant to the question. Format citations as: Source: [Article Title]
-
-If the topic tree does not cover a question, state that explicitly rather than guessing.`;
-}
-
-export async function runHarness(
+/**
+ * Run assertions against a set of pre-generated outputs.
+ *
+ * @param entries - Array of { input, output } pairs. Claude Code generates
+ *   the output by answering each question using the skill as context.
+ * @param skillPath - Path to the SKILL.md (used in the report)
+ * @param skillContent - The skill file content (passed to skill-aware assertions)
+ * @param verbose - Include full output text in results
+ */
+export function evaluateOutputs(
+  entries: EvalEntry[],
   skillPath: string,
-  testInputsPath: string,
+  skillContent: string,
   verbose: boolean = false,
-): Promise<HarnessResult> {
-  const skillContent = readFileSync(skillPath, 'utf-8');
-  const testInputs: TestInput[] = JSON.parse(
-    readFileSync(testInputsPath, 'utf-8'),
-  );
-  const systemPrompt = buildSystemPrompt(skillContent);
-
+): HarnessResult {
   const failureCounts: Record<string, number> = {};
   const results: AssertionResult[] = [];
 
-  for (const input of testInputs) {
+  for (const entry of entries) {
+    const assertions = runAllAssertions(entry.output, skillContent);
+    const passed = Object.values(assertions).every(Boolean);
+
+    for (const [name, result] of Object.entries(assertions)) {
+      if (!result) {
+        failureCounts[name] = (failureCounts[name] || 0) + 1;
+      }
+    }
+
+    const assertionResult: AssertionResult = {
+      inputId: entry.input.id,
+      question: entry.input.question,
+      assertions,
+      passed,
+    };
+
     if (verbose) {
-      process.stdout.write(`  [${input.id}] ${input.question.slice(0, 60)}...`);
+      assertionResult.output = entry.output;
     }
 
-    try {
-      const output = await callAnthropic(systemPrompt, input.question);
-      const assertions = runAllAssertions(output, skillContent);
-      const passed = Object.values(assertions).every(Boolean);
-
-      for (const [name, result] of Object.entries(assertions)) {
-        if (!result) {
-          failureCounts[name] = (failureCounts[name] || 0) + 1;
-        }
-      }
-
-      const result: AssertionResult = {
-        inputId: input.id,
-        question: input.question,
-        assertions,
-        passed,
-      };
-
-      if (verbose) {
-        result.output = output;
-      }
-
-      results.push(result);
-
-      if (verbose) {
-        const status = passed ? ' PASS' : ' FAIL';
-        const failedNames = Object.entries(assertions)
-          .filter(([, v]) => !v)
-          .map(([k]) => k);
-        console.log(
-          status + (failedNames.length ? ` [${failedNames.join(', ')}]` : ''),
-        );
-      }
-    } catch (err) {
-      console.error(`  [${input.id}] ERROR: ${(err as Error).message}`);
-      results.push({
-        inputId: input.id,
-        question: input.question,
-        assertions: {},
-        passed: false,
-      });
-    }
+    results.push(assertionResult);
   }
 
   const totalPassed = results.filter((r) => r.passed).length;
@@ -122,4 +92,11 @@ export async function runHarness(
     failureCounts,
     results,
   };
+}
+
+/**
+ * Load test inputs from the JSON file.
+ */
+export function loadTestInputs(path: string): TestInput[] {
+  return JSON.parse(readFileSync(path, 'utf-8'));
 }

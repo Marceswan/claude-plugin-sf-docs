@@ -1,9 +1,6 @@
 #!/usr/bin/env node
 // src/cli.ts
 import { Command } from 'commander';
-import { execFile } from 'child_process';
-import { resolve, dirname } from 'path';
-import { fileURLToPath } from 'url';
 import { Fetcher } from './fetcher.js';
 import { Parser } from './parser.js';
 import { Store } from './store.js';
@@ -13,61 +10,6 @@ import { Registry } from './registry.js';
 import { PATHS } from './config.js';
 import { Generator } from './generator.js';
 import { Packer } from './packer.js';
-
-const __cliDirname = dirname(fileURLToPath(import.meta.url));
-
-interface ImproveResult {
-  iterations: number;
-  initialPassRate: number;
-  finalPassRate: number;
-  finalResult: {
-    totalInputs: number;
-    failureCounts: Record<string, number>;
-  };
-  skillContent: string;
-}
-
-function runImproveSubprocess(
-  skillPath: string,
-  opts: { maxIterations: number; verbose: boolean },
-): Promise<ImproveResult> {
-  return new Promise((resolveP, reject) => {
-    const improveCli = resolve(__cliDirname, '..', 'evals', 'quality', 'improve-cli.ts');
-    const tsxBin = resolve(__cliDirname, '..', 'node_modules', '.bin', 'tsx');
-
-    const args = [
-      improveCli,
-      '--skill', skillPath,
-      '--max-iterations', String(opts.maxIterations),
-    ];
-    if (opts.verbose) args.push('--verbose');
-
-    const child = execFile(tsxBin, args, {
-      env: { ...process.env },
-      maxBuffer: 10 * 1024 * 1024,
-    }, (err, stdout, stderr) => {
-      if (stderr && opts.verbose) {
-        // stderr has verbose progress output -- show it
-        process.stderr.write(stderr);
-      }
-      if (err) {
-        reject(new Error(`Improve subprocess failed: ${err.message}\n${stderr}`));
-        return;
-      }
-      try {
-        const result = JSON.parse(stdout) as ImproveResult;
-        resolveP(result);
-      } catch {
-        reject(new Error(`Failed to parse improve result: ${stdout.slice(0, 200)}`));
-      }
-    });
-
-    // Stream stderr in real-time if verbose
-    if (opts.verbose && child.stderr) {
-      child.stderr.pipe(process.stderr);
-    }
-  });
-}
 
 const program = new Command();
 
@@ -275,19 +217,17 @@ program
 
 program
   .command('update [crawl-name]')
-  .description('Re-crawl, regenerate skill, and run eval-improve loop')
+  .description('Re-crawl, regenerate skill, and harden with eval checks')
   .option('--all', 'Re-crawl all registered crawls')
   .option('--force', 'Re-fetch even if pages are fresh')
-  .option('--skip-crawl', 'Skip re-crawl, just regenerate and eval')
-  .option('--skip-eval', 'Skip eval loop, just crawl and regenerate')
-  .option('--max-iterations <number>', 'Max eval improvement iterations', '5')
-  .option('-v, --verbose', 'Show detailed eval output')
+  .option('--skip-crawl', 'Skip re-crawl, just regenerate and harden')
+  .option('--skip-harden', 'Skip hardening, just crawl and regenerate')
+  .option('-v, --verbose', 'Show detailed check output')
   .action(async (crawlName: string | undefined, opts: {
     all?: boolean;
     force?: boolean;
     skipCrawl?: boolean;
-    skipEval?: boolean;
-    maxIterations: string;
+    skipHarden?: boolean;
     verbose?: boolean;
   }) => {
     const registry = new Registry(PATHS.crawls);
@@ -338,50 +278,57 @@ program
       const skillPath = generator.generateSkill(entry.name);
       console.log(`  Skill written: ${skillPath}`);
 
-      // ── Phase 3: Eval + improve ───────────────────────────────
-      if (!opts.skipEval) {
-        if (!process.env.ANTHROPIC_API_KEY) {
-          console.log('[3/3] Eval: skipped (ANTHROPIC_API_KEY not set)');
-          console.log('\nSkill generated but not eval-hardened. Set ANTHROPIC_API_KEY to enable.');
-        } else {
-          console.log(`[3/3] Running eval-improve loop (max ${opts.maxIterations} iterations)...`);
-          try {
-            const result = await runImproveSubprocess(skillPath, {
-              maxIterations: parseInt(opts.maxIterations, 10),
-              verbose: opts.verbose || false,
-            });
+      // ── Phase 3: Harden ───────────────────────────────────────
+      if (!opts.skipHarden) {
+        console.log('[3/3] Running skill-level checks and hardening...');
+        // Dynamic import: evals/ is outside src/rootDir, loaded at runtime via tsx
+        // When running from compiled dist/, this uses the .ts source via node's loader
+        const { resolve: resolvePath } = await import('path');
+        const hardenerPath = resolvePath(PATHS.root, 'evals', 'quality', 'hardener.ts');
+        const { hardenSkill } = await import(hardenerPath) as {
+          hardenSkill: (path: string) => {
+            checkResult: {
+              checks: Array<{ name: string; passed: boolean; message: string }>;
+              passed: number; failed: number; total: number; passRate: number;
+            };
+            applied: string[];
+            alreadyPassing: string[];
+            finalContent: string;
+          };
+        };
 
-            console.log(`\n${'='.repeat(60)}`);
-            console.log('UPDATE COMPLETE');
-            console.log('='.repeat(60));
-            console.log(`  Skill: ${entry.name}`);
-            console.log(`  Initial pass rate: ${(result.initialPassRate * 100).toFixed(1)}%`);
-            console.log(`  Final pass rate:   ${(result.finalPassRate * 100).toFixed(1)}%`);
-            console.log(`  Iterations:        ${result.iterations}`);
+        const result = hardenSkill(skillPath);
 
-            if (Object.keys(result.finalResult.failureCounts).length > 0) {
-              console.log('  Remaining failures:');
-              for (const [name, count] of Object.entries(result.finalResult.failureCounts)) {
-                console.log(`    ${name}: ${count}/${result.finalResult.totalInputs}`);
-              }
-            }
-
-            // Output the final skill content
-            console.log(`\n${'─'.repeat(60)}`);
-            console.log('FINAL SKILL OUTPUT');
-            console.log('─'.repeat(60));
-            console.log(result.skillContent);
-          } catch (err) {
-            console.error(`Eval error: ${(err as Error).message}`);
-            console.log('Skill was generated but eval loop failed. The un-hardened skill is at:');
-            console.log(`  ${skillPath}`);
+        if (opts.verbose) {
+          console.log('\n  Checks:');
+          for (const check of result.checkResult.checks) {
+            const icon = check.passed ? 'PASS' : 'FAIL';
+            console.log(`    [${icon}] ${check.name}: ${check.message}`);
           }
         }
+
+        console.log(`\n  Checks: ${result.checkResult.passed}/${result.checkResult.total} passed`);
+
+        if (result.applied.length > 0) {
+          console.log(`  Hardened: injected ${result.applied.length} instruction sections`);
+          if (opts.verbose) {
+            for (const name of result.applied) {
+              console.log(`    + ${name}`);
+            }
+          }
+        } else {
+          console.log('  Hardened: no fixes needed -- all checks pass');
+        }
+
+        // Output the final skill content
+        console.log(`\n${'='.repeat(60)}`);
+        console.log('FINAL SKILL OUTPUT');
+        console.log('='.repeat(60));
+        console.log(result.finalContent);
       } else {
-        console.log('[3/3] Eval: skipped (--skip-eval)');
+        console.log('[3/3] Harden: skipped (--skip-harden)');
       }
 
-      // Always show the skill path
       console.log(`\nSkill file: ${skillPath}`);
     }
   });

@@ -26,6 +26,33 @@ If this skill was injected by the sf-docs hook, the plugin root path is provided
 3. Cite the source article URL in your answer
 4. If the docs don't cover the question, say so explicitly — do not guess
 
+
+## Prohibited Phrases
+
+Never use these or similar generic filler:
+- "As an AI language model..."
+- "I don't have access to real-time..."
+- "Please consult the official documentation"
+- "I'd recommend reaching out to Salesforce support"
+- "It depends on your specific use case"
+
+Lead with the answer. If you lack information, state what is missing specifically.
+
+## Answer Format
+
+- Structure all answers over 100 words with markdown headers, numbered steps, or bullet points
+- Use numbered steps for how-to and configuration procedures
+- Use bullets for lists of considerations, features, or options
+- Use headers (##, ###) to separate distinct topics within a response
+- Keep answers between 100-800 words unless the question demands more
+
+## Navigation and Steps
+
+- For how-to questions, include step-by-step navigation paths (e.g., Setup > Commerce > Stores)
+- Use action verbs: Navigate to, Click, Select, Enable, Go to
+- Reference the specific UI location: Setup, Commerce App, Experience Builder, Store Workspace
+- Include prerequisite steps when relevant (permissions, feature enablement)
+
 ## Reference Summary
 
 ## Topic Tree

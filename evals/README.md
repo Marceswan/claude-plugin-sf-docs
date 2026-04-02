@@ -1,16 +1,18 @@
 # Eval System for SF Docs Plugin
 
-Measures and optimizes the quality of generated SME skills.
+Measures and optimizes the quality of generated SME skills. Fully self-contained -- no external API keys required.
 
 ## Structure
 
 ```
 evals/
-├── quality/          # Binary output-quality evals
-│   ├── assertions.ts # Assertion functions (grounding, structural, domain)
-│   ├── harness.ts    # Test runner using Anthropic API
+├── quality/          # Quality evaluation
+│   ├── assertions.ts # Output-level assertion functions (grounding, structural, domain)
+│   ├── skill-checks.ts  # Skill-level checks (deterministic, no LLM)
+│   ├── hardener.ts   # Auto-applies fixes for failing skill-level checks
+│   ├── harness.ts    # Output-level eval runner (for Claude Code to drive)
 │   ├── test-inputs.json  # 15 realistic Salesforce questions
-│   └── run.ts        # CLI entrypoint
+│   └── run.ts        # CLI for skill-level checks
 ├── trigger/          # Trigger-precision evals
 │   ├── eval-set.json # 20 queries (10 should-trigger, 10 should-not)
 │   └── README.md     # Instructions for running trigger evals
@@ -19,58 +21,39 @@ evals/
 └── README.md         # This file
 ```
 
-## Prerequisites
+## Two Levels of Evaluation
+
+### Level 1: Skill-Level Checks (Deterministic)
+
+Checks the SKILL.md instructions directly -- does it have citation instructions, filler prohibitions, formatting guidance, etc. Runs automatically during `sf-docs update` and auto-fixes failures.
 
 ```bash
-export ANTHROPIC_API_KEY=sk-ant-...
-```
-
-## Running Quality Evals
-
-Invoke the generated skill against test inputs and check binary assertions on each output.
-
-```bash
-# Standard run
+# Standalone check
 npx tsx evals/quality/run.ts --skill data/generated/commerce-cloud/SKILL.md
 
-# With full output for each input
-npx tsx evals/quality/run.ts --skill data/generated/commerce-cloud/SKILL.md --verbose
+# Via update command (crawls, regenerates, and hardens)
+sf-docs update commerce-cloud --verbose
 ```
 
-Or use npm scripts:
+### Level 2: Output-Level Assertions (Claude Code-Driven)
 
-```bash
-npm run eval:quality -- --skill data/generated/commerce-cloud/SKILL.md
-npm run eval:quality:verbose -- --skill data/generated/commerce-cloud/SKILL.md
-```
+Tests actual generated answers against 9 binary assertions. Claude Code IS the LLM -- no separate API call needed.
 
-Output includes:
-- Per-input pass/fail with failing assertion names
-- Aggregate failure counts by assertion
-- Overall pass rate
-- JSON report at `evals/quality/last-report.json`
+1. Read the skill and `evals/quality/test-inputs.json`
+2. Answer each question using the skill as context
+3. Run `runAllAssertions(output, skillContent)` from `assertions.ts` against each answer
+4. Follow `evals/improve/CLAUDE.md` for the iterative improvement loop
 
 ## Running Trigger Evals
 
-See `evals/trigger/README.md` for instructions on running trigger-precision evals using skill-creator scripts.
-
-## Running the Self-Improving Loop
-
-The improvement loop iteratively edits the SKILL.md based on eval failures:
-
-1. Open a Claude Code session in this project
-2. Tell Claude to follow `evals/improve/CLAUDE.md`
-3. Specify the target skill: `data/generated/commerce-cloud/SKILL.md`
-4. Claude will run evals, read failures, edit the skill, re-run, commit, and repeat
-
-The loop stops when all assertions pass or after 30 iterations.
+See `evals/trigger/README.md`.
 
 ## Assertions Reference
 
 ### Grounding
 | Assertion | What It Checks |
 |-----------|---------------|
-| `citesSource` | References a specific SF doc article title or URL |
+| `citesSource` | References a specific article title from the Topic Tree or valid SF URL |
 | `noHallucinatedUrls` | URLs (if present) are from approved SF domains only |
 | `admitsWhenUncovered` | Does not contain fabricated SF object names |
 
@@ -94,7 +77,7 @@ The loop stops when all assertions pass or after 30 iterations.
 2. Add it to `runAllAssertions()` return object
 3. Add a test case in `tests/eval-assertions.test.ts`
 4. Add the assertion-to-fix mapping in `evals/improve/CLAUDE.md`
-5. Update this README's assertions table
+5. For skill-level checks, add a check function to `evals/quality/skill-checks.ts` and a fix block to `evals/quality/hardener.ts`
 
 ## Adding New Test Inputs
 
@@ -107,5 +90,3 @@ Add entries to `evals/quality/test-inputs.json`:
   "question": "The realistic user question"
 }
 ```
-
-Categories: `how-to` (5), `troubleshooting` (3), `feature-explanation` (3), `permissions-licensing` (2), `edge-case` (2).
