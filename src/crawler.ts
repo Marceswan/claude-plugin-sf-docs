@@ -5,19 +5,45 @@ import { VectorIndex } from './vectorIndex.js';
 import { PATHS } from './config.js';
 
 export function extractArticleLinks(html: string, baseUrl: string): string[] {
-  const regex = /href=["']([^"']*\/s\/articleView\?id=[^"'&]+[^"']*)["']/gi;
   const links = new Set<string>();
-  let match: RegExpExecArray | null;
 
-  while ((match = regex.exec(html)) !== null) {
+  // help.salesforce.com links: /s/articleView?id=...
+  const baseOrigin = new URL(baseUrl).origin;
+  const helpRegex = /href=["']([^"']*\/s\/articleView\?id=[^"'&]+[^"']*)["']/gi;
+  let match: RegExpExecArray | null;
+  while ((match = helpRegex.exec(html)) !== null) {
     let href = match[1];
     if (href.startsWith('/')) {
-      href = `${baseUrl}${href}`;
+      href = `${baseOrigin}${href}`;
     }
-    const url = new URL(href);
-    const id = url.searchParams.get('id');
-    if (id) {
-      links.add(`${url.origin}/s/articleView?id=${id}&type=5`);
+    try {
+      const url = new URL(href);
+      const id = url.searchParams.get('id');
+      if (id) {
+        links.add(`${url.origin}/s/articleView?id=${id}&type=5`);
+      }
+    } catch { /* invalid URL */ }
+  }
+
+  // developer.salesforce.com links: /docs/.../*.html
+  const devRegex = /href=["']([^"']*developer\.salesforce\.com\/docs\/[^"']+\.html)["']/gi;
+  while ((match = devRegex.exec(html)) !== null) {
+    let href = match[1];
+    if (href.startsWith('//')) href = `https:${href}`;
+    if (!href.startsWith('http')) continue;
+    links.add(href);
+  }
+
+  // Relative links on developer.salesforce.com pages (e.g., href="/docs/ai/..." or href="page.html")
+  if (baseUrl.includes('developer.salesforce.com')) {
+    const relRegex = /href=["'](\/docs\/[^"']+\.html|(?!https?:\/\/|\/\/|#|javascript:)[^"']+\.html)["']/gi;
+    while ((match = relRegex.exec(html)) !== null) {
+      try {
+        const resolved = new URL(match[1], baseUrl).href;
+        if (resolved.includes('developer.salesforce.com/docs/')) {
+          links.add(resolved);
+        }
+      } catch { /* invalid URL */ }
     }
   }
 
@@ -27,7 +53,13 @@ export function extractArticleLinks(html: string, baseUrl: string): string[] {
 export function isInScope(articleId: string, scopeArea: string): boolean {
   const dotIndex = articleId.indexOf('.');
   const area = dotIndex > 0 ? articleId.substring(0, dotIndex) : 'general';
-  return area === scopeArea;
+  // For developer docs, check if the article starts with the same path prefix
+  // e.g., scopeArea="ai" matches articleId="ai.agentforce.guide.agent-script"
+  if (area === scopeArea) return true;
+  // Also allow if the full ID shares the first two segments with the scope article
+  // e.g., "ai.agentforce.guide.X" stays in scope with "ai.agentforce.guide.Y"
+  const scopeParts = scopeArea.split('.').slice(0, 2).join('.');
+  return articleId.startsWith(scopeParts);
 }
 
 export interface CrawlOptions {
@@ -95,7 +127,7 @@ export class Crawler {
           fetched++;
 
           if (depth < options.depth) {
-            const links = extractArticleLinks(raw.html, 'https://help.salesforce.com');
+            const links = extractArticleLinks(raw.html, url);
             nextLevel.push(...links);
           }
 

@@ -3,14 +3,23 @@ import { chromium, Browser } from 'playwright';
 import { PAGE_TIMEOUT_MS, SELECTOR_TIMEOUT_MS, FETCH_DELAY_MS } from './config.js';
 import type { RawPage } from './parser.js';
 
-// Selectors for the actual article body content on SF Help.
-// SF uses an Aura/Lightning app — content renders inside these containers.
+// Selectors for the actual article body content.
+// SF Help uses Aura/Lightning, developer.salesforce.com uses a different layout.
 // Tried in order; first match with substantive content wins.
-const CONTENT_SELECTORS = [
+const HELP_CONTENT_SELECTORS = [
   '.slds-text-longform',
   '.article-content',
   '.slds-rich-text-editor__output',
   '.content-body',
+];
+
+const DEV_CONTENT_SELECTORS = [
+  'article',
+  '.doc-content',
+  '.content-body',
+  'main .content',
+  'main',
+  '[role="main"]',
 ];
 
 // Elements to remove from the DOM before extracting content.
@@ -53,6 +62,7 @@ export class Fetcher {
   async fetchPage(url: string): Promise<RawPage> {
     const browser = await this.ensureBrowser();
     const page = await browser.newPage();
+    const isDevDocs = url.includes('developer.salesforce.com/docs/');
 
     try {
       await page.goto(url, { waitUntil: 'domcontentloaded', timeout: PAGE_TIMEOUT_MS });
@@ -68,13 +78,11 @@ export class Fetcher {
         // No cookie banner — continue
       }
 
-      // Step 2: Wait for the Aura app to fully render the article
-      // SF's Lightning/Aura framework renders async — wait for networkidle
+      // Step 2: Wait for content to render
       await page.waitForLoadState('networkidle', { timeout: PAGE_TIMEOUT_MS });
 
-      // Step 3: Give the Aura app extra time to hydrate content
-      // SF pages often need a beat after networkidle for content injection
-      await page.waitForTimeout(2000);
+      // Step 3: Extra hydration time (SF Help needs more, dev docs less)
+      await page.waitForTimeout(isDevDocs ? 3000 : 2000);
 
       // Step 4: Remove noise elements from the DOM before extraction
       await page.evaluate((selectors: string[]) => {
@@ -83,38 +91,55 @@ export class Fetcher {
         }
       }, ELEMENTS_TO_REMOVE);
 
-      // Step 5: Try to extract article content using known selectors
+      // Step 5: Try to extract article content
       let contentHtml: string | null = null;
-      for (const selector of CONTENT_SELECTORS) {
-        try {
-          const elements = await page.$$(selector);
-          if (elements.length === 0) continue;
 
-          // Concatenate all matching elements (some pages have multiple content sections)
+      if (isDevDocs) {
+        // developer.salesforce.com uses shadow DOM with slotted content
+        contentHtml = await page.evaluate(() => {
+          const layout = document.querySelector('doc-content-layout');
+          if (!layout || !layout.shadowRoot) return null;
+          const slot = layout.shadowRoot.querySelector('slot:not([name])');
+          if (!slot) return null;
+          const assigned = (slot as HTMLSlotElement).assignedNodes();
           const parts: string[] = [];
-          for (const el of elements) {
-            const html = await el.innerHTML();
-            if (html && html.trim().length > 50) {
-              parts.push(html);
+          for (const node of assigned) {
+            if (node.nodeType === 1) {
+              parts.push((node as Element).outerHTML);
             }
           }
+          return parts.length > 0 ? parts.join('\n') : null;
+        });
+      } else {
+        // help.salesforce.com uses Aura/Lightning containers
+        for (const selector of HELP_CONTENT_SELECTORS) {
+          try {
+            const elements = await page.$$(selector);
+            if (elements.length === 0) continue;
 
-          if (parts.length > 0) {
-            contentHtml = parts.join('\n\n');
-            break;
+            const parts: string[] = [];
+            for (const el of elements) {
+              const html = await el.innerHTML();
+              if (html && html.trim().length > 50) {
+                parts.push(html);
+              }
+            }
+
+            if (parts.length > 0) {
+              contentHtml = parts.join('\n\n');
+              break;
+            }
+          } catch {
+            continue;
           }
-        } catch {
-          continue;
         }
       }
 
       // Step 6: Fallback — grab all list items and paragraphs from the page body
-      // This catches content even when SF changes their container classes
       if (!contentHtml || contentHtml.length < 200) {
         const fallbackHtml = await page.evaluate(() => {
           const contentParts: string[] = [];
 
-          // Grab substantive paragraphs (not in nav, footer, banner)
           document.querySelectorAll('p, li.slds-p-bottom_small').forEach(el => {
             const text = el.textContent?.trim() || '';
             const parent = el.closest('nav, footer, .banner-header, .forceCommunityToastManager');

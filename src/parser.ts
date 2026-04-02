@@ -48,14 +48,24 @@ export class Parser {
   }
 
   extractArticleId(url: string): string {
-    const match = url.match(/[?&]id=([^&]+)/);
-    if (!match) return '';
-    return match[1].replace(/\.htm$/, '');
+    // help.salesforce.com: ?id=sf.field_name.htm -> sf.field_name
+    const helpMatch = url.match(/[?&]id=([^&]+)/);
+    if (helpMatch) return helpMatch[1].replace(/\.htm$/, '');
+
+    // developer.salesforce.com: /docs/ai/agentforce/guide/agent-script.html
+    const devMatch = url.match(/developer\.salesforce\.com\/docs\/(.+?)\.html/);
+    if (devMatch) return devMatch[1].replace(/\//g, '.');
+
+    return '';
   }
 
   extractArea(articleId: string): string {
     const dotIndex = articleId.indexOf('.');
     return dotIndex > 0 ? articleId.substring(0, dotIndex) : 'general';
+  }
+
+  isDeveloperDocs(url: string): boolean {
+    return url.includes('developer.salesforce.com/docs/');
   }
 
   buildArticle(raw: RawPage): Article {
