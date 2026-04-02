@@ -1,0 +1,107 @@
+{
+  "description": "Trigger precision eval set for sf-docs skill routing. Tests whether the skill description correctly triggers (or avoids triggering) for various queries.",
+  "should_trigger": [
+    {
+      "id": "trigger-01",
+      "query": "how do i set up buyer groups for my b2b store",
+      "reason": "Core B2B commerce setup question"
+    },
+    {
+      "id": "trigger-02",
+      "query": "whats the diff between LWR and aura store templates in commerce cloud",
+      "reason": "Commerce template comparison needs SF docs"
+    },
+    {
+      "id": "trigger-03",
+      "query": "I'm getting 'FIELD_CUSTOM_VALIDATION_EXCEPTION' on my account trigger after adding a before update handler, the debug log shows line 42 in AccountTriggerHandler.cls",
+      "reason": "Apex debugging question that benefits from SF docs reference"
+    },
+    {
+      "id": "trigger-04",
+      "query": "need help with the commerce search index -- it keeps failing after we added a custom field to Product2",
+      "reason": "Commerce search troubleshooting"
+    },
+    {
+      "id": "trigger-05",
+      "query": "what permission sets does a b2b buyer user need? our external community users cant see products",
+      "reason": "B2B permission and entitlement question"
+    },
+    {
+      "id": "trigger-06",
+      "query": "can you explain how screen flows work with input/output variables and the lightning:availableForFlowScreens interface",
+      "reason": "Flow development question covered by SF docs"
+    },
+    {
+      "id": "trigger-07",
+      "query": "how do i create a lightning web component that uses wire service to call an apex method",
+      "reason": "LWC + Apex development needs official docs"
+    },
+    {
+      "id": "trigger-08",
+      "query": "We want to enable einstein recommendations on our D2C storefront. Where do we start?",
+      "reason": "Commerce Einstein feature setup"
+    },
+    {
+      "id": "trigger-09",
+      "query": "what are the governor limits for SOQL queries in batch apex -- we're hitting 'Too many query rows' in our nightly job",
+      "reason": "Governor limits question needs authoritative SF docs"
+    },
+    {
+      "id": "trigger-10",
+      "query": "how does agentforce guided shopping work for b2b commerce and what are the LLM requirements",
+      "reason": "Agentforce + Commerce integration docs"
+    }
+  ],
+  "should_not_trigger": [
+    {
+      "id": "notrigger-01",
+      "query": "write me a python script that scrapes salesforce.com pricing page and dumps it to csv",
+      "reason": "Web scraping task, not SF platform docs"
+    },
+    {
+      "id": "notrigger-02",
+      "query": "how do I set up a playwright test for our checkout flow at https://mystore.com/checkout",
+      "reason": "E2E testing tooling, not SF docs"
+    },
+    {
+      "id": "notrigger-03",
+      "query": "SELECT Id, Name FROM Account WHERE Industry = 'Technology' ORDER BY CreatedDate DESC LIMIT 50",
+      "reason": "Pure SOQL data query -- just needs execution, not docs"
+    },
+    {
+      "id": "notrigger-04",
+      "query": "configure our omnistudio integration procedure to call the shipping rate API and map the response to a DataRaptor transform",
+      "reason": "OmniStudio-specific, handled by sf-industry skills"
+    },
+    {
+      "id": "notrigger-05",
+      "query": "set up a marketing cloud journey that triggers when a contact fills out a form and sends a drip email sequence over 14 days",
+      "reason": "Marketing Cloud journey builder, separate product domain"
+    },
+    {
+      "id": "notrigger-06",
+      "query": "how do i create a data cloud segment based on unified individual profiles with engagement score > 80",
+      "reason": "Data Cloud segmentation, handled by sf-datacloud skills"
+    },
+    {
+      "id": "notrigger-07",
+      "query": "help me write a react component with tailwind css that shows a product card with image, price, and add-to-cart button",
+      "reason": "Generic frontend development, not SF-specific"
+    },
+    {
+      "id": "notrigger-08",
+      "query": "what AWS services should I use to build a serverless commerce backend with DynamoDB and Lambda",
+      "reason": "AWS architecture, not Salesforce"
+    },
+    {
+      "id": "notrigger-09",
+      "query": "our shopify store checkout is broken on mobile -- the payment form overlaps the order summary on iphone 14",
+      "reason": "Shopify, not Salesforce Commerce"
+    },
+    {
+      "id": "notrigger-10",
+      "query": "can you review my jest test file at tests/cart.test.ts -- the mock for the API call isn't working right",
+      "reason": "Jest test debugging, generic dev task"
+    }
+  ]
+}

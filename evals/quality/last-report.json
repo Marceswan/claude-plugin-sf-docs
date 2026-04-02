@@ -1,0 +1,100 @@
+{
+  "skillPath": "/Users/marc.swan/Documents/Code/claude-plugin-sf-docs/data/generated/commerce-cloud/SKILL.md",
+  "totalInputs": 15,
+  "totalPassed": 0,
+  "totalFailed": 15,
+  "passRate": 0,
+  "failureCounts": {},
+  "results": [
+    {
+      "inputId": "howto-01",
+      "question": "How do I associate a buyer group with a B2B store?",
+      "assertions": {},
+      "passed": false
+    },
+    {
+      "inputId": "howto-02",
+      "question": "Walk me through setting up product bundles in a B2B commerce store",
+      "assertions": {},
+      "passed": false
+    },
+    {
+      "inputId": "howto-03",
+      "question": "How do I enable semantic search for my B2B commerce store?",
+      "assertions": {},
+      "passed": false
+    },
+    {
+      "inputId": "howto-04",
+      "question": "How do I create a promotion that gives 10% off orders over $500 in my B2B store?",
+      "assertions": {},
+      "passed": false
+    },
+    {
+      "inputId": "howto-05",
+      "question": "What are the steps to set up multiple shipping profiles for a B2B store?",
+      "assertions": {},
+      "passed": false
+    },
+    {
+      "inputId": "troubleshoot-01",
+      "question": "Products aren't showing in search on our B2B store, entitlements look fine. What should I check?",
+      "assertions": {},
+      "passed": false
+    },
+    {
+      "inputId": "troubleshoot-02",
+      "question": "We're getting async order failures on our B2B store after enabling high scale orders. The sharing settings look correct. What else could cause this?",
+      "assertions": {},
+      "passed": false
+    },
+    {
+      "inputId": "troubleshoot-03",
+      "question": "Our commerce search index keeps throwing errors after we added custom fields. How do we troubleshoot this?",
+      "assertions": {},
+      "passed": false
+    },
+    {
+      "inputId": "feature-01",
+      "question": "What's the difference between product bundles and product sets in B2B commerce?",
+      "assertions": {},
+      "passed": false
+    },
+    {
+      "inputId": "feature-02",
+      "question": "Explain how markets work for B2B authenticated buyers and how they relate to buyer groups",
+      "assertions": {},
+      "passed": false
+    },
+    {
+      "inputId": "feature-03",
+      "question": "What is Agentforce for Guided Shopping and how does it integrate with B2B commerce?",
+      "assertions": {},
+      "passed": false
+    },
+    {
+      "inputId": "permissions-01",
+      "question": "What permission sets do B2B commerce buyer users need? We have both internal staff and external buyers.",
+      "assertions": {},
+      "passed": false
+    },
+    {
+      "inputId": "permissions-02",
+      "question": "What licenses are required for B2B commerce and what are the differences between editions?",
+      "assertions": {},
+      "passed": false
+    },
+    {
+      "inputId": "edge-01",
+      "question": "We need to configure advanced pricing with Revenue Cloud integration, set up configurable bundles, and also enable qualification rules -- all on the same B2B store. Are there conflicts or ordering dependencies?",
+      "assertions": {},
+      "passed": false
+    },
+    {
+      "inputId": "edge-02",
+      "question": "Can I use Data 360 intelligence dashboards alongside Commerce Einstein recommendations and Agentforce merchandising on the same B2B store? Any limits or feature interactions to watch for?",
+      "assertions": {},
+      "passed": false
+    }
+  ]
+}

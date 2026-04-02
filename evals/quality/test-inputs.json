@@ -1,0 +1,77 @@
+[
+  {
+    "id": "howto-01",
+    "category": "how-to",
+    "question": "How do I associate a buyer group with a B2B store?"
+  },
+  {
+    "id": "howto-02",
+    "category": "how-to",
+    "question": "Walk me through setting up product bundles in a B2B commerce store"
+  },
+  {
+    "id": "howto-03",
+    "category": "how-to",
+    "question": "How do I enable semantic search for my B2B commerce store?"
+  },
+  {
+    "id": "howto-04",
+    "category": "how-to",
+    "question": "How do I create a promotion that gives 10% off orders over $500 in my B2B store?"
+  },
+  {
+    "id": "howto-05",
+    "category": "how-to",
+    "question": "What are the steps to set up multiple shipping profiles for a B2B store?"
+  },
+  {
+    "id": "troubleshoot-01",
+    "category": "troubleshooting",
+    "question": "Products aren't showing in search on our B2B store, entitlements look fine. What should I check?"
+  },
+  {
+    "id": "troubleshoot-02",
+    "category": "troubleshooting",
+    "question": "We're getting async order failures on our B2B store after enabling high scale orders. The sharing settings look correct. What else could cause this?"
+  },
+  {
+    "id": "troubleshoot-03",
+    "category": "troubleshooting",
+    "question": "Our commerce search index keeps throwing errors after we added custom fields. How do we troubleshoot this?"
+  },
+  {
+    "id": "feature-01",
+    "category": "feature-explanation",
+    "question": "What's the difference between product bundles and product sets in B2B commerce?"
+  },
+  {
+    "id": "feature-02",
+    "category": "feature-explanation",
+    "question": "Explain how markets work for B2B authenticated buyers and how they relate to buyer groups"
+  },
+  {
+    "id": "feature-03",
+    "category": "feature-explanation",
+    "question": "What is Agentforce for Guided Shopping and how does it integrate with B2B commerce?"
+  },
+  {
+    "id": "permissions-01",
+    "category": "permissions-licensing",
+    "question": "What permission sets do B2B commerce buyer users need? We have both internal staff and external buyers."
+  },
+  {
+    "id": "permissions-02",
+    "category": "permissions-licensing",
+    "question": "What licenses are required for B2B commerce and what are the differences between editions?"
+  },
+  {
+    "id": "edge-01",
+    "category": "edge-case",
+    "question": "We need to configure advanced pricing with Revenue Cloud integration, set up configurable bundles, and also enable qualification rules -- all on the same B2B store. Are there conflicts or ordering dependencies?"
+  },
+  {
+    "id": "edge-02",
+    "category": "edge-case",
+    "question": "Can I use Data 360 intelligence dashboards alongside Commerce Einstein recommendations and Agentforce merchandising on the same B2B store? Any limits or feature interactions to watch for?"
+  }
+]
